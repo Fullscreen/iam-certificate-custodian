@@ -11,9 +11,6 @@ iam = boto3.client('iam', region_name=aws_region)
 def is_expired(cert):
   return cert['Expiration'] < datetime.now(pytz.utc)
 
-def delete_certificate(cert):
-  iam.delete_server_certificate
-
 def get_certififcates_from_listeners(listeners):
   certificates = []
   for listener in listeners:
@@ -84,7 +81,11 @@ def cleanup(event, context):
 
     if cert_name.startswith(os.environ.get('CERTIFICATE_PREFIX', '')):
       if cert_arn not in active_certificates:
-        if os.environ.get('DELETE_UNUSED_CERTIFICATES', 'false') == 'true':
-          print("DELETE", cert_arn)
-        elif is_expired(cert):
-          print("DELETE", cert_arn)
+
+        delete_unused = os.environ.get('DELETE_UNUSED_CERTIFICATES', 'false')
+        if delete_unused == 'true' or is_expired(cert):
+          print('Deleting {}'.format(cert_arn))
+          resp = iam.delete_server_certificate(
+            ServerCertificateName=cert_name
+          )
+          print(resp)
